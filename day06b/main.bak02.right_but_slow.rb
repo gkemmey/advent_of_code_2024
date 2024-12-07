@@ -101,18 +101,20 @@ end
 def run(input)
   grid, start = parse(input)
   visited = [start]
-  obstacles = Set.new
+  loops = 0
 
   walk(grid, visited) do |next_position|
-    obstacle = [next_position[0], next_position[1]]
-    next if obstacles.include?(obstacle)
+    # if i've been here before from any direction, i've already checked placing
+    # an obstacle here. if i _do_ place an obstacle here, i'll have turned
+    # away earlier in the path, so i don't need to try it from this direction.
+    next if visited.any? { |v| v[0] == next_position[0] && v[1] == next_position[1] }
 
     with_obstacle_at(grid, next_position) do
-      obstacles << obstacle if loops?(grid, visited.dup)
+      loops += 1 if loops?(grid, visited.dup)
     end
   end
 
-  obstacles.size
+  loops
 end
 
 fail unless 6 == run(DATA.read).tap { pp(_1) }
