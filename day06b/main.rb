@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "matrix"
 
 module Chars
@@ -10,6 +12,21 @@ module Directions
   RIGHT = 1
   DOWN = 2
   LEFT = 3
+
+  STEP_DELTAS = {
+    UP    => Vector[-1,  0, 0],
+    RIGHT => Vector[ 0,  1, 0],
+    DOWN  => Vector[ 1,  0, 0],
+    LEFT  => Vector[ 0, -1, 0]
+  }.transform_values(&:freeze).freeze
+
+  def self.step(position)
+    position + STEP_DELTAS[position[2]]
+  end
+
+  def self.turn(position)
+    Vector[position[0], position[1], position[2].next % 4]
+  end
 end
 
 def parse(input)
@@ -38,42 +55,44 @@ def obstacle?(grid, position)
   grid[position[0]][position[1]] == Chars::OBSTACLE
 end
 
-def peek(grid, position)
-  {
-    Directions::UP    => Vector[-1,  0, 0],
-    Directions::RIGHT => Vector[ 0,  1, 0],
-    Directions::DOWN  => Vector[ 1,  0, 0],
-    Directions::LEFT  => Vector[ 0, -1, 0]
-  }[position[2]] + position
+def step(position)
+  Directions.step(position)
 end
 
 def turn(position)
-  position.dup.tap { |p| p[2] = p[2].next % 4 }
+  Directions.turn(position)
 end
 
-def visited(grid, position)
-  visited = Set.new
+def walk(grid, visited)
+  position = visited.keys.last
+  next_position = step(position)
 
-  until out_of_bounds?(grid, peek(grid, position)) do
-    visited << position
+  until out_of_bounds?(grid, next_position) do
+    if obstacle?(grid, next_position)
+      position = turn(position)
+      next_position = step(position)
+    else
+      yield(next_position) if block_given?
 
-    position = turn(position) while obstacle?(grid, peek(grid, position))
-    position = peek(grid, position)
+      position = next_position
+      visited[position] = true
+
+      next_position = step(position)
+    end
   end
-
-  visited << position
-  return visited
 end
 
-def loops?(grid, position)
-  visited = Set.new
+def with_obstacle_at(grid, position)
+  original = grid[position[0]][position[1]]
+  grid[position[0]][position[1]] = Chars::OBSTACLE
+  yield
+ensure
+  grid[position[0]][position[1]] = original if original
+end
 
-  until out_of_bounds?(grid, peek(grid, position)) do
-    visited << position
-
-    position = turn(position) while obstacle?(grid, peek(grid, position))
-    position = peek(grid, position)
-    return true if visited.include?(position)
+def loops?(grid, visited)
+  walk(grid, visited) do |next_position|
+    return true if visited.include?(next_position)
   end
 
   false
@@ -81,14 +100,18 @@ end
 
 def run(input)
   grid, start = parse(input)
-  visited = visited(grid, start)
-
+  visited = { start => true }
   loops = 0
-  visited.uniq { |p| [p[0], p[1]] }.each do |v|
-    next if start[0] == v[0] && start[1] == v[1]
 
-    o_grid = grid.map(&:dup).tap { |g| g[v[0]][v[1]] = Chars::OBSTACLE }
-    loops += 1 if loops?(o_grid, start)
+  walk(grid, visited) do |next_position|
+    # if i've been here before from any direction, i've already checked placing
+    # an obstacle here. if i _do_ place an obstacle here, i'll have turned
+    # away earlier in the path, so i don't need to try it from this direction.
+    next if visited.keys.any? { |v| v[0] == next_position[0] && v[1] == next_position[1] }
+
+    with_obstacle_at(grid, next_position) do
+      loops += 1 if loops?(grid, visited.dup)
+    end
   end
 
   loops
