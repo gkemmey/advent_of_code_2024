@@ -64,7 +64,7 @@ def turn(position)
 end
 
 def walk(grid, visited)
-  position = visited.last
+  position = visited.keys.last
   next_position = step(position)
 
   until out_of_bounds?(grid, next_position) do
@@ -75,7 +75,7 @@ def walk(grid, visited)
       yield(next_position) if block_given?
 
       position = next_position
-      visited << position
+      visited[position] = true
 
       next_position = step(position)
     end
@@ -100,14 +100,14 @@ end
 
 def run(input)
   grid, start = parse(input)
-  visited = [start]
+  visited = { start => true }
   loops = 0
 
   walk(grid, visited) do |next_position|
     # if i've been here before from any direction, i've already checked placing
     # an obstacle here. if i _do_ place an obstacle here, i'll have turned
     # away earlier in the path, so i don't need to try it from this direction.
-    next if visited.any? { |v| v[0] == next_position[0] && v[1] == next_position[1] }
+    next if visited.keys.any? { |v| v[0] == next_position[0] && v[1] == next_position[1] }
 
     with_obstacle_at(grid, next_position) do
       loops += 1 if loops?(grid, visited.dup)
