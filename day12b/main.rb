@@ -3,6 +3,8 @@ class Area
   #      RIGHT   DOWN    LEFT     UP
   TRY = { 0 => 3, 1 => 0, 2 => 1, 3 => 2 }
 
+  attr_reader :plots
+
   def initialize
     @plots = []
     @contains = []
@@ -57,7 +59,7 @@ class Area
 
       next_position = DIR[dir].zip(position).map(&:sum)
 
-      if !@plots.include?(next_position)
+      if !@plots.include?(next_position) && @contains.none? { |c| c.plots.include?(next_position) }
         dir = (dir + 1) % 4
         # pp({ new_dir: dir, turning: true })
         sides += 1
@@ -77,9 +79,38 @@ class Area
 
     start
   end
+
+  def print(solution)
+    blank = []
+
+    (0...solution.rows).each do |r|
+      (0...solution.cols).each do |c|
+        (blank[r] ||= [])[c] = "."
+      end
+    end
+
+    @plots.each do |p|
+      blank[p[0]][p[1]] = solution.garden[p]
+    end
+
+    @contains.each do |c|
+      c.plots.each do |p|
+        blank[p[0]][p[1]] = solution.garden[p]
+      end
+    end
+
+    pp({ plots: @plots.size, sides: sides, inner_sides: @contains.sum(&:sides) })
+    blank.each do |row|
+      puts(row.join)
+    end
+
+    nil
+  end
 end
 
 class Solution
+  attr_reader :garden, :rows, :cols
+
   def initialize(input)
     @input = input
     parse
@@ -107,7 +138,7 @@ class Solution
 
   private
 
-    attr_reader :input, :garden, :rows, :cols, :tallies
+    attr_reader :input, :tallies
 
     def parse
       @garden = input.lines(chomp: true).each.with_index.with_object({}) { |(line, row), memo|
@@ -145,6 +176,48 @@ class Solution
 end
 
 other = <<~TEXT
+.....................
+......Z...ZZ.........
+......Z...ZZZZ.......
+......Z.....ZCZZ.....
+......ZZZZZZZZZZ.....
+....ZZZZZZZZZZZZZ....
+......ZZZZZZZZZZZZZ..
+.......ZZZZZZZZZZZZZ.
+......ZZZZZZZZZZZZZ..
+...Z.ZZZZZZZZZZZZZZZ.
+...ZZZCCCZZZZZZZ.Z...
+...ZZZZZZZZZZBZZ.....
+..ZBZZZZZZZZZZ.......
+..ZZZZZZ..Z..........
+.ZZZZZZZ..Z..........
+.Z.ZZZZZ.............
+.Z.ZZZ.Z.............
+...Z.................
+.....................
+TEXT
+
+fail unless 13374 == Solution.new(other).run.tap { pp(_1) }
+
+other = <<~TEXT
+EEEEE
+EXXXX
+EEEEE
+EXXXX
+EEEEE
+TEXT
+fail unless  236 == Solution.new(other).run.tap { pp(_1) }
+
+other = <<~TEXT
+OOOOO
+OXOXO
+OOOOO
+OXOXO
+OOOOO
+TEXT
+fail unless  436 == Solution.new(other).run.tap { pp(_1) }
+
+other = <<~TEXT
 AAAAAA
 AAABBA
 AAABBA
@@ -152,8 +225,8 @@ ABBAAA
 ABBAAA
 AAAAAA
 TEXT
-
 fail unless  368 == Solution.new(other).run.tap { pp(_1) }
+
 fail unless 1206 == Solution.new(DATA.read).run.tap { pp(_1) }
 
 puts Solution.new(File.read("#{__dir__}/input.txt")).run # 874174, 905878
