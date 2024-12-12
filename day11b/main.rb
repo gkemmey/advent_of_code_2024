@@ -2,18 +2,6 @@ def parse(input)
   input.split.map(&:to_i)
 end
 
-def count(stones, ticks, table = {})
-  # pp({ stones:, ticks: })
-  if ticks == 0
-    (table[stones] ||= {})[ticks] = stones.size
-    return stones.size
-  elsif (answer = table.dig(stones, ticks))
-    answer
-  else
-    split(stones).sum { |s| count([s], ticks - 1, table) }
-  end
-end
-
 def split(stone)
   if stone.zero?
     1
@@ -22,14 +10,6 @@ def split(stone)
   else
     stone * 2024
   end
-end
-
-def count(stones, n, memo)
-  stones.each { |s| (memo[s] ||= {})[n] = 1 if n == 0 }
-  stones.sum { |s|
-    next answer if (answer = memo.dig(s, n))
-    split()
-  }
 end
 
 def run(input)
